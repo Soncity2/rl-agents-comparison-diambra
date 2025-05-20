@@ -1,0 +1,16 @@
+
+venv/
+
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Data and output files
+*.csv
+*.log
+*.zip
+
+# ROMs and checkpoints
+Roms/
+checkpoints/
+exported_policy/

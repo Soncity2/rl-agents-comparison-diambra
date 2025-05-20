@@ -1,0 +1,4 @@
+numpy==1.26.4
+diambra
+diambra-arena[ray-rllib]
+
