@@ -18,7 +18,7 @@ RainbowDIAMBRA/
 │   └── ray-rllib-train.py
 │
 ├── results/                    # Logs and metrics
-├── exported_policy/            # Trained models or agents
+├── exported_policy/            # Trained models or agents (excluded from Git)
 ├── checkpoints/                # Model checkpoints (excluded from Git)
 ├── Roms/                       # Game ROMs (excluded from Git)
 │
@@ -35,8 +35,8 @@ RainbowDIAMBRA/
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/RainbowDIAMBRA.git
-cd RainbowDIAMBRA
+git clone https://github.com/Soncity2/rainbow-diambra.git
+cd rainbow-diambra
 
 # Create and activate virtual environment
 python -m venv venv
