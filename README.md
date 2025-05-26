@@ -31,7 +31,7 @@ RainbowDIAMBRA/
 
 ---
 
-## Setup
+## Setup (Python version 3.9)
 
 ```bash
 # Clone the repo
