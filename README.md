@@ -54,8 +54,8 @@ pip install -r requirements.txt
 These are experimental scripts used to test features and train with RLlib.
 
 ```bash
-diambra run -r /Users/soncity2/Documents/RainbowDIAMBRA/Roms python experiments/main.py              # DIAMBRA Arena integration test
-diambra run -r /Users/soncity2/Documents/RainbowDIAMBRA/Roms python experiments/ray-rllib-train.py   # Training via Ray RLlib
+diambra run -r **Roms Directory path** python basic_examples/main.py              # DIAMBRA Arena integration test
+diambra run -r **Roms Directory path** python basic_examples/ray-rllib-train.py   # Training via Ray RLlib
 ```
 
 ---
@@ -65,8 +65,8 @@ diambra run -r /Users/soncity2/Documents/RainbowDIAMBRA/Roms python experiments/
 This is the main logic for training and evaluating the final agent.
 
 ```bash
-diambra run -r /Users/soncity2/Documents/RainbowDIAMBRA/Roms python final_project/train_agent.py --algo ppo     # Train the final model
-diambra run -r /Users/soncity2/Documents/RainbowDIAMBRA/Roms python final_project/play_agent.py      # Run a trained model
+diambra run -r **Roms Directory path** python final_project/train_agent.py --algo ppo     # Train the final model
+diambra run -r **Roms Directory path** python final_project/play_agent.py      # Run a trained model
 ```
 
 ---
