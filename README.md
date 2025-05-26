@@ -39,7 +39,7 @@ git clone https://github.com/Soncity2/rainbow-diambra.git
 cd rainbow-diambra
 
 # Create and activate virtual environment
-python -m venv venv
+python3.9 -m venv venv
 source venv/bin/activate
 
 # Install all required dependencies
