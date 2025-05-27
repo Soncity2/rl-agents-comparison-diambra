@@ -65,7 +65,7 @@ diambra run -r **Roms Directory path** python basic_examples/ray-rllib-train.py 
 This is the main logic for training and evaluating the final agent.
 
 ```bash
-diambra run -r **Roms Directory path** python final_project/train_agent.py --algo ppo     # Train the final model
+diambra run -r **Roms Directory path** python final_project/train_agent.py --algo ppo --iters 10 --save --export-policy     # Train the final model
 diambra run -r **Roms Directory path** python final_project/play_agent.py      # Run a trained model
 ```
 
