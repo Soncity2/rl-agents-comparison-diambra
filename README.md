@@ -49,6 +49,11 @@ pip install -r requirements.txt
 
 ---
 
+### *Add the tektagt.zip ROM file to the rom directory.
+ROM file instructions: https://docs.diambra.ai/envs/games/tektagt/
+
+---
+
 ## 🧪 Run Experiments
 
 These are experimental scripts used to test features and train with RLlib.

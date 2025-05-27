@@ -11,6 +11,6 @@ __pycache__/
 *.zip
 
 # ROMs and checkpoints
-Roms/
+#Roms/
 checkpoints/
 exported_policy/
