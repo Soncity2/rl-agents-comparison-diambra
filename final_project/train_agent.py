@@ -207,7 +207,7 @@ def main(args, algo_name=None):
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"results/{args.algo}/total_cumulative_reward.png")
-    plt.show()
+    plt.close()
 
     # Learning Efficiency Plot
     plt.figure(figsize=(10, 4))
