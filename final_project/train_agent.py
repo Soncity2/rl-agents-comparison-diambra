@@ -11,6 +11,9 @@ from ray.rllib.algorithms.ppo import PPO
 from ray.rllib.algorithms.dqn import DQNConfig
 from ray.tune.logger import pretty_print
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 # ---------- Logging Utilities ----------
 def init_csv_log(file_path, header):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -41,16 +44,17 @@ def build_env_settings():
     settings.action_space = SpaceTypes.DISCRETE
     #else:
     #    settings.action_space = SpaceTypes.MULTI_DISCRETE
-    settings.difficulty = 1
+    settings.difficulty = 4
     settings.step_ratio = 6
     settings.outfits = 1
     settings.frame_shape = (240, 320, 1)
     return settings
 
-#def build_wrapper_settings():
-    #wrapper_settings = WrappersSettings()
-    #wrapper_settings.stack_frame = 1
-    #return wrapper_settings
+def build_wrapper_settings():
+    wrapper_settings = WrappersSettings()
+    wrapper_settings.normalize_reward = True
+    wrapper_settings.normalization_factor = 0.5
+    return wrapper_settings
 
 # ---------- Agent Builders ----------
 def build_ppo_agent(env_config):
@@ -98,31 +102,33 @@ def build_dqn_agent(env_config, use_rainbow=False):
     return algo_config.build()
 
 # ---------- Main Training Logic ----------
-def main(args):
+def main(args, algo_name=None):
+    if algo_name is not None:
+        args.algo = algo_name
     # Ensure required directories
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(f"results/{args.algo}", exist_ok=True)
     os.makedirs("checkpoints", exist_ok=True)
 
     # Build environment settings
     env_settings = build_env_settings()
-    #wrap_settings = build_wrapper_settings()
+    wrap_settings = build_wrapper_settings()
     env_config = {
         "game_id": "tektagt",
         "settings": env_settings,
-        #"wrapper_settings": wrap_settings,
+        "wrapper_settings": wrap_settings,
         "cli_args": "-s=4"
     }
 
     # Build agent
     if args.algo == "ppo":
         agent = build_ppo_agent(env_config)
-        log_file = "results/ppo.csv"
+        log_file = f"results/{args.algo}/ppo.csv"
     elif args.algo == "rainbow":
         agent = build_dqn_agent(env_config, use_rainbow=True)
-        log_file = "results/rainbow_dqn.csv"
+        log_file = f"results/{args.algo}/rainbow_dqn.csv"
     elif args.algo == "dqn":
         agent = build_dqn_agent(env_config, use_rainbow=False)
-        log_file = "results/dqn.csv"
+        log_file = f"results/{args.algo}/dqn.csv"
     else:
         raise ValueError(f"Unknown algorithm: {args.algo}")
 
@@ -135,22 +141,101 @@ def main(args):
         agent.restore(args.load_checkpoint)
 
     # Training loop
-    init_csv_log(log_file, ["iteration", "reward_mean"])
+    init_csv_log(log_file, ["iteration", "reward_mean", "total_episodes", "ep_len"])
+    total_rewards = 0
+    reward_history = []
+    episode_history = []
+    learning_efficiency = []
+    policy_stability = []
+
+    moving_avg_window = args.moving_avg_window  # Or any window you like
+    convergence_threshold = args.stop_reward
+
     print(f"\n🚀 Starting training using {args.algo.upper()}...\n")
     for i in tqdm(range(args.iters), desc="Training"):
         result = agent.train()
-        reward = result["episode_reward_mean"]
         episodes = result.get("episodes_this_iter", 0)
+        total_episodes = result.get("episodes_total", 0)
+        reward = result.get("episode_reward_mean", float("nan"))
         ep_len = result.get("episode_len_mean", 0)
-        print(f"[{args.algo.upper()}] Iteration {i}: reward = {reward}, episodes = {episodes}, ep_len = {ep_len}")
-        print(pretty_print(result))
-        log_result(log_file, [i, reward])
 
-    print("\n✅ Training completed.")
+        if episodes == 0 or reward is None or np.isnan(reward):
+            print(f"[{args.algo.upper()}] Iteration {i} skipped: Incomplete episode or reward is NaN.")
+            continue
+
+        print(f"[{args.algo.upper()}] Iteration {i}: reward = {reward}, total episodes = {total_episodes}, ep_len = {ep_len}")
+        print(pretty_print(result))
+        log_result(log_file, [i, reward, total_episodes, ep_len])
+
+        total_rewards += reward
+
+        # Track per-iteration reward for convergence check
+        reward_history.append(reward)
+        episode_history.append(total_episodes)
+        print(f"Cumulative reward so far: {total_rewards:.2f}")
+
+        # Calculate learning efficiency (reward per episode)
+        episodes_total = total_episodes if total_episodes > 0 else 1
+        learning_efficiency.append(reward / episodes_total)
+
+        # Calculate rolling policy stability (std dev of last 5 rewards)
+        if len(reward_history) >= 2:
+            window = min(5, len(reward_history))
+            std_reward = np.std(reward_history[-window:])
+            policy_stability.append(std_reward)
+        else:
+            policy_stability.append(0.0)
+
+        # Moving average of per-iteration reward
+        if len(reward_history) >= moving_avg_window:
+            moving_avg = sum(reward_history[-moving_avg_window:]) / moving_avg_window
+            print(f"Moving average reward (last {moving_avg_window} iters): {moving_avg:.2f}")
+
+            if moving_avg >= convergence_threshold:
+                print(f"\n🎉 Converged! Moving average reward reached {moving_avg:.2f} at iteration {i}.")
+                break
+
+
+    cumulative_reward = np.cumsum(reward_history)
+
+    plt.figure(figsize=(10, 4))
+    plt.plot(episode_history, cumulative_reward, label='Cumulative Reward')
+    plt.xlabel('Episodes')
+    plt.ylabel('Total Cumulative Reward')
+    plt.title('Total Cumulative Reward Over Episodes')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"results/{args.algo}/total_cumulative_reward.png")
+    plt.show()
+
+    # Learning Efficiency Plot
+    plt.figure(figsize=(10, 4))
+    plt.plot(range(len(learning_efficiency)), learning_efficiency, label='Learning Efficiency')
+    plt.xlabel('Iteration')
+    plt.ylabel('Reward per Episode')
+    plt.title(f'Learning Efficiency Over Iterations {args.algo.upper()}')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"results/{args.algo}/learning_efficiency.png")
+    plt.close()
+
+    # Policy Stability Plot
+    plt.figure(figsize=(10, 4))
+    plt.plot(range(len(policy_stability)), policy_stability, label='Policy Stability (Reward Std Dev)', color='orange')
+    plt.xlabel('Iteration')
+    plt.ylabel('Rolling Std Dev')
+    plt.title(f'Policy Stability {args.algo.upper()} - Rolling Reward Variance')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"results/{args.algo}/policy_stability.png")
+    plt.close()
 
     # Save checkpoint
     if args.save:
-        checkpoint_path = agent.save("checkpoints/")
+        checkpoint_path = agent.save(f"checkpoints/{args.algo}/")
         print(f"\n💾 Agent checkpoint saved at: {checkpoint_path}")
 
     # Export policy
@@ -186,9 +271,13 @@ def main(args):
 # ---------- CLI Interface ----------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train RL agents on DIAMBRA Arena (tektagt)")
-    parser.add_argument("--algo", type=str, default="ppo", choices=["ppo", "dqn", "rainbow"],
+    parser.add_argument("--algo", type=str, default="ppo", choices=["all", "ppo", "dqn", "rainbow"],
                         help="RL algorithm to use: ppo | dqn | rainbow")
     parser.add_argument("--iters", type=int, default=10, help="Number of training iterations")
+    parser.add_argument("--stop-reward", type=float, default=1000.0,
+                        help="Stop if moving average reward exceeds this value")
+    parser.add_argument("--moving-avg-window", type=int, default=20,
+                        help="Window size for moving average convergence check")
     parser.add_argument("--play", action="store_true", help="Play with trained agent after training")
     parser.add_argument("--save", action="store_true", help="Save the trained agent as a checkpoint")
     parser.add_argument("--load-checkpoint", type=str, default=None,
@@ -199,4 +288,9 @@ if __name__ == "__main__":
                         help="Export the policy model for inference after training or loading")
 
     args = parser.parse_args()
-    main(args)
+
+    if args.algo == "all":
+        for a in ["ppo", "dqn", "rainbow"]:
+            main(args, algo_name=a)
+    else:
+        main(args)
