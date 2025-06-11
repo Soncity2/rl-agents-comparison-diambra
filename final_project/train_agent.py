@@ -44,7 +44,7 @@ def build_env_settings():
     settings.action_space = SpaceTypes.DISCRETE
     #else:
     #    settings.action_space = SpaceTypes.MULTI_DISCRETE
-    settings.difficulty = 4
+    settings.difficulty = 1
     settings.step_ratio = 6
     settings.outfits = 1
     settings.frame_shape = (240, 320, 1)
