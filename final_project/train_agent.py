@@ -14,6 +14,13 @@ from ray.tune.logger import pretty_print
 import matplotlib.pyplot as plt
 import numpy as np
 
+# ---------- CLI Utilities ----------
+def restricted_int(val):
+    ivalue = int(val)
+    if ivalue < 1 or ivalue > 9:
+        raise argparse.ArgumentTypeError("Value must be between 1 and 9.")
+    return ivalue
+
 # ---------- Logging Utilities ----------
 def init_csv_log(file_path, header):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -35,16 +42,11 @@ def get_latest_checkpoint(algorithm_name):
     return sorted(candidates)[-1]
 
 # ---------- Environment Setup ----------
-def build_env_settings():
+def build_env_settings(difficulty):
     settings = EnvironmentSettings()
     settings.characters = ["Armorking", "Kuma"]
-
-    # 🔀 Auto-select action space based on algorithm
-    #if args.algo.lower() in ["dqn", "rainbow"]:
     settings.action_space = SpaceTypes.DISCRETE
-    #else:
-    #    settings.action_space = SpaceTypes.MULTI_DISCRETE
-    settings.difficulty = 1
+    settings.difficulty = difficulty
     settings.step_ratio = 6
     settings.outfits = 1
     settings.frame_shape = (240, 320, 1)
@@ -110,7 +112,7 @@ def main(args, algo_name=None):
     os.makedirs("checkpoints", exist_ok=True)
 
     # Build environment settings
-    env_settings = build_env_settings()
+    env_settings = build_env_settings(args.difficulty)
     wrap_settings = build_wrapper_settings()
     env_config = {
         "game_id": "tektagt",
@@ -150,6 +152,7 @@ def main(args, algo_name=None):
 
     moving_avg_window = args.moving_avg_window  # Or any window you like
     convergence_threshold = args.stop_reward
+    not_learning_threshold = args.stop_neg_reward
 
     print(f"\n🚀 Starting training using {args.algo.upper()}...\n")
     for i in tqdm(range(args.iters), desc="Training"):
@@ -194,7 +197,9 @@ def main(args, algo_name=None):
             if moving_avg >= convergence_threshold:
                 print(f"\n🎉 Converged! Moving average reward reached {moving_avg:.2f} at iteration {i}.")
                 break
-
+            if moving_avg <= not_learning_threshold:
+                print(f"\n🎉 The agent is not learning! Moving average reward reached {moving_avg:.2f} at iteration {i}.")
+                break
 
     cumulative_reward = np.cumsum(reward_history)
 
@@ -274,8 +279,11 @@ if __name__ == "__main__":
     parser.add_argument("--algo", type=str, default="ppo", choices=["all", "ppo", "dqn", "rainbow"],
                         help="RL algorithm to use: ppo | dqn | rainbow")
     parser.add_argument("--iters", type=int, default=10, help="Number of training iterations")
+    parser.add_argument("--difficulty", type=restricted_int, default=1, help="Environment difficulty (1-9)")
     parser.add_argument("--stop-reward", type=float, default=1000.0,
                         help="Stop if moving average reward exceeds this value")
+    parser.add_argument("--stop-neg-reward", type=float, default=-100.0,
+                        help="Stop if moving average reward falls to this value")
     parser.add_argument("--moving-avg-window", type=int, default=20,
                         help="Window size for moving average convergence check")
     parser.add_argument("--play", action="store_true", help="Play with trained agent after training")
