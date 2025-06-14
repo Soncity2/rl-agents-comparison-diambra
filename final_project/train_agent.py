@@ -328,7 +328,7 @@ if __name__ == "__main__":
     parser.add_argument("--difficulty", type=restricted_int, default=1, help="Environment difficulty (1-9)")
     parser.add_argument("--stop-reward", type=float, default=1000.0,
                         help="Stop if moving average reward exceeds this value")
-    parser.add_argument("--stop-neg-reward", type=float, default=-100.0,
+    parser.add_argument("--stop-neg-reward", type=float, default=-30.0,
                         help="Stop if moving average reward falls to this value")
     parser.add_argument("--moving-avg-window", type=int, default=20,
                         help="Window size for moving average convergence check")

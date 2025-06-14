@@ -114,6 +114,7 @@ def play_agent(args, env_settings, wrap_settings, env_config):
     stage_progress = []
 
     for episode in range(args.max_episodes):
+        total_reward = 0
         obs, info = env.reset()
         done = False
 
@@ -121,7 +122,8 @@ def play_agent(args, env_settings, wrap_settings, env_config):
             env.render()
             action = agent.compute_single_action(obs)
             obs, reward, terminated, truncated, info = env.step(action)
-            print("Reward: {}".format(reward))
+            total_reward += reward
+            print("Reward: {}".format(total_reward))
             done = terminated or truncated
 
         if info.get("winner") == 1:
@@ -132,8 +134,8 @@ def play_agent(args, env_settings, wrap_settings, env_config):
     env.close()
     win_rate = wins / args.max_episodes
     avg_stage = np.mean(stage_progress)
-    print(f"\n🏆 Win Rate: {win_rate:.2%}")
-    print(f"📊 Avg Stage Progress: {avg_stage:.2f}")
+    print(f"\n🏆 {args.algo.upper()} Win Rate: {win_rate:.2%}")
+    print(f"\n📊{args.algo.upper()} Avg Stage Progress: {avg_stage:.2f}")
 
 
 # === Entry point ===
