@@ -1,102 +1,160 @@
 import argparse
-import diambra.arena
-from diambra.arena import EnvironmentSettings, SpaceTypes
-from ray.rllib.policy.policy import Policy
-from ray.rllib.algorithms.algorithm import Algorithm
-from diambra.arena.ray_rllib.make_ray_env import DiambraArena
-import torch
 import os
+import glob
 import numpy as np
 
-# ---------- Build Environment Settings ----------
-def build_env_settings():
+import torch
+from ray.rllib.algorithms.ppo import PPO
+from ray.rllib.algorithms.dqn import DQNConfig
+
+import diambra.arena
+from diambra.arena import EnvironmentSettings, WrappersSettings, SpaceTypes
+from diambra.arena.ray_rllib.make_ray_env import DiambraArena, preprocess_ray_config
+
+
+def get_latest_checkpoint(algorithm_name):
+    pattern = f"checkpoints/{algorithm_name.upper()}*/checkpoint-*"
+    candidates = glob.glob(pattern)
+    if not candidates:
+        raise FileNotFoundError(f"No checkpoints found for {algorithm_name.upper()} in checkpoints/")
+    return sorted(candidates)[-1]
+
+
+def build_env_settings(difficulty=1):
     settings = EnvironmentSettings()
     settings.characters = ["Armorking", "Kuma"]
     settings.action_space = SpaceTypes.DISCRETE
-    settings.difficulty = 1
+    settings.difficulty = difficulty
     settings.step_ratio = 6
     settings.outfits = 1
     settings.frame_shape = (240, 320, 1)
     return settings
 
-# ---------- Load Policy ----------
-def load_algorithm(checkpoint_dir: str) -> Algorithm:
-    if not checkpoint_dir:
-        raise FileNotFoundError("No checkpoint found in directory.")
 
-    print(f"Loading RLlib Algorithm checkpoint from: {checkpoint_dir}")
-    agent = Algorithm.from_checkpoint(checkpoint_dir)
-    return agent
+def build_wrapper_settings():
+    wrapper_settings = WrappersSettings()
+    wrapper_settings.normalize_reward = True
+    wrapper_settings.normalization_factor = 0.5
+    wrapper_settings.stack_frame = 4
+    wrapper_settings.dilation = 2
+    return wrapper_settings
 
-def load_exported_policy(export_dir: str) -> Policy:
-    print(f"Loading exported policy from: {export_dir}")
-    policy = Policy.from_checkpoint(export_dir)  # Loads Torch/TF weights
-    return policy
 
-# ---------- Run Inference Loop ----------
-def play_agent(policy: Policy, settings: EnvironmentSettings):
+def build_ppo_agent(env_config):
+    config = {
+        "env": DiambraArena,
+        "env_config": env_config,
+        "num_workers": 0,
+        "train_batch_size": 1000,
+    }
+    config = preprocess_ray_config(config)
+    return PPO(config=config)
+
+
+def build_dqn_agent(env_config, use_rainbow=False):
+    base_config = {
+        "env": DiambraArena,
+        "env_config": env_config,
+        "num_workers": 0,
+        "train_batch_size": 32,
+        "_disable_preprocessor_api": True,
+    }
+    base_config = preprocess_ray_config(base_config)
+    algo_config = DQNConfig().update_from_dict(base_config)
+
+    if use_rainbow:
+        algo_config = algo_config.training(
+            n_step=1,
+            dueling=True,
+            double_q=True,
+            noisy=True,
+            num_atoms=51,
+            v_min=-10.0,
+            v_max=10.0,
+            gamma=0.99,
+            lr=1e-4
+        )
+    else:
+        algo_config = algo_config.training(
+            dueling=False,
+            double_q=False,
+            noisy=False,
+            n_step=1,
+            lr=1e-4
+        )
+
+    return algo_config.build()
+
+
+def play_agent(args, env_settings, wrap_settings, env_config):
+    # Load the correct agent
+    if args.algo == "ppo":
+        agent = build_ppo_agent(env_config)
+    elif args.algo == "rainbow":
+        agent = build_dqn_agent(env_config, use_rainbow=True)
+    elif args.algo == "dqn":
+        agent = build_dqn_agent(env_config, use_rainbow=False)
+    else:
+        raise ValueError(f"Unknown algorithm: {args.algo}")
+
+    # Determine checkpoint path
+    if args.load_latest:
+        args.load_checkpoint = get_latest_checkpoint(args.algo)
+
+    if not args.load_checkpoint:
+        raise ValueError("Checkpoint must be provided via --load-checkpoint or --load-latest.")
+
+    print(f"\n🔄 Loading checkpoint from: {args.load_checkpoint}")
+    agent.restore(args.load_checkpoint)
+
+    print("\n🎮 Running trained agent...\n")
+    env = diambra.arena.make("tektagt", env_settings, wrap_settings, render_mode="human")
 
     wins = 0
-    total_episodes = 0
     stage_progress = []
 
-    env = diambra.arena.make("tektagt", settings, render_mode="human")
+    for episode in range(args.max_episodes):
+        obs, info = env.reset()
+        done = False
 
-    obs, info = env.reset()
-    print("\n🎮 Starting gameplay with exported policy...\n")
+        while not done:
+            env.render()
+            action = agent.compute_single_action(obs)
+            obs, reward, terminated, truncated, info = env.step(action)
+            print("Reward: {}".format(reward))
+            done = terminated or truncated
 
-    max_episodes = 2  # 🔁 Change this if you want more play episodes
-    episode_count = 0
-
-    while episode_count < max_episodes:
-        env.render()
-
-        # DEBUG: print structure once
-        print(f"[DEBUG] obs type: {type(obs)} | keys: {obs.keys() if isinstance(obs, dict) else 'n/a'}")
-
-        # Extract frame only, convert to torch tensor
-        frame = obs["frame"]
-        frame_tensor = torch.from_numpy(np.copy(frame)).float().unsqueeze(0)  # add batch dimension
-
-        action = policy.compute_single_action({"obs": frame_tensor})
-
-        obs, reward, terminated, truncated, info = env.step(action)
-
-        if terminated or truncated:
-            total_episodes += 1
-            stage = info.get("stage", 0)
-            stage_progress.append(stage)
-
-            if info.get("winner") == 1:  # 1 = agent win, 2 = opponent win
-                wins += 1
-            print(f"Episode {total_episodes}: {'WIN' if info.get('winner') == 1 else 'LOSS'}")
-            print("\n Episode ended. Resetting environment...")
-            obs, info = env.reset()
-
-    win_rate = wins / total_episodes if total_episodes > 0 else 0
-    print(f"\n Win Rate: {win_rate:.2%}")
-
-    avg_stage = np.mean(stage_progress) if stage_progress else 0
-    print(f"\n Average Stage Progression: {avg_stage:.2f}")
+        if info.get("winner") == 1:
+            wins += 1
+        stage_progress.append(info.get("stage", 0))
+        print(f"\n🎮 Episode {episode + 1} result: {'WIN' if info.get('winner') == 1 else 'LOSS'}")
 
     env.close()
+    win_rate = wins / args.max_episodes
+    avg_stage = np.mean(stage_progress)
+    print(f"\n🏆 Win Rate: {win_rate:.2%}")
+    print(f"📊 Avg Stage Progress: {avg_stage:.2f}")
 
 
-# ---------- Main ----------
+# === Entry point ===
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--algo", type=str, default="ppo")
-    parser.add_argument("--load_type", choices=["checkpoint", "policy"], default="checkpoint")
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints/")
+    parser = argparse.ArgumentParser(description="Play trained RL agents with DIAMBRA Arena")
+    parser.add_argument("--algo", type=str, required=True, choices=["ppo", "dqn", "rainbow"],
+                        help="Algorithm to load: ppo | dqn | rainbow")
+    parser.add_argument("--load-checkpoint", type=str, default=None,
+                        help="Path to a checkpoint to load the agent from")
+    parser.add_argument("--load-latest", action="store_true",
+                        help="Auto-load the latest checkpoint for the selected algorithm")
+    parser.add_argument("--max-episodes", type=int, default=3, help="Episodes to play")
     args = parser.parse_args()
 
     env_settings = build_env_settings()
+    wrap_settings = build_wrapper_settings()
+    env_config = {
+        "game_id": "tektagt",
+        "settings": env_settings,
+        "wrapper_settings": wrap_settings,
+        "cli_args": "-s=4"
+    }
 
-    if args.load_type == "checkpoint":
-        agent = load_algorithm(args.checkpoint_dir)
-        policy = agent.get_policy()
-    elif args.load_type == "policy":
-        policy = load_exported_policy(f"./exported_policy/{args.algo}")
-
-    play_agent(policy, env_settings)
-
+    play_agent(args, env_settings, wrap_settings, env_config)
