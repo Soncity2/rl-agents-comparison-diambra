@@ -106,13 +106,13 @@ def build_dqn_agent(env_config, use_rainbow=False):
 
     if use_rainbow:
         algo_config = algo_config.training(
-            n_step=1,  # ← disables problematic postprocessor
+            n_step=3,
             dueling=True,
             double_q=True,
-            noisy=True,
+            noisy=False,
             num_atoms=51,
-            v_min=-10.0,
-            v_max=10.0,
+            v_min=-15.0,
+            v_max=15.0,
             gamma=0.99,
             lr=1e-4
         )
@@ -150,10 +150,12 @@ def main(args, algo_name=None):
         agent = build_ppo_agent(env_config)
         log_file = f"results/{args.algo}/ppo.csv"
     elif args.algo == "rainbow":
+        env_config["wrapper_settings"].normalize_reward= False
         env_config["wrapper_settings"].clip_reward = True
         agent = build_dqn_agent(env_config, use_rainbow=True)
         log_file = f"results/{args.algo}/rainbow_dqn.csv"
     elif args.algo == "dqn":
+        env_config["wrapper_settings"].normalize_reward= False
         env_config["wrapper_settings"].clip_reward = True
         agent = build_dqn_agent(env_config, use_rainbow=False)
         log_file = f"results/{args.algo}/dqn.csv"
