@@ -24,7 +24,9 @@ rl-agents-comparison-diambra/
 │
 ├── final_project/               # Final project training and evaluation
 │   ├── train_agent.py
-│   └── play_agent.py
+│   ├── play_agent.py
+│   ├── characters.py
+│   └── results_visualization.py
 │
 ├── basic_examples/              # Experimental code and sandbox testing
 │   ├── main.py
@@ -77,7 +79,7 @@ These scripts showcase basic integration and RLlib training examples.
 
 ```bash
 diambra run -r <Roms path> python basic_examples/main.py            # Environment test
-Diambra run -r <Roms path> python basic_examples/ray-rllib-train.py  # Train via RLlib
+diambra run -r <Roms path> python basic_examples/ray-rllib-train.py  # Train via RLlib
 ```
 
 ---
@@ -94,7 +96,7 @@ diambra run -r <Roms path> python final_project/play_agent.py
 
 ---
 
-### 🧾 Command Line Options
+### 🧾 Command Line Options (Train)
 
 The main training script exposes several useful flags:
 
@@ -109,11 +111,27 @@ The main training script exposes several useful flags:
 | `--load-latest`     | flag   | `False` | Automatically load the most recent checkpoint.             |
 | `--export-policy`   | flag   | `False` | Export the trained policy for inference.                   |
 
+----
+
+### 🧾 Command Line Options (Play)
+The main play script exposes several useful flags:
+
+| Argument            | Type   | Default | Description                                       |
+|---------------------|--------|---------|---------------------------------------------------|
+| `--algo`            | `str`  | `ppo`   | RL algorithm to use (`ppo`, `dqn`, or `rainbow`). |
+| `--max-episodes`    | `int`  | `3`     | Number of Episodes to play.                       |
+| `--difficulty`      | `int`  | `1`     | Environment difficulty level (1-9).               |
+| `--save`            | flag   | `False` | Save the trained agent as a checkpoint.           |
+| `--load-checkpoint` | `str`  | `None`  | Path to a checkpoint to load the agent from.      |
+| `--load-latest`     | flag   | `False` | Automatically load the most recent checkpoint.    |
+
+
 ---
 
 ## 📊 Results
 
-Training logs and performance metrics are written to the `results/` folder. Evaluation statistics generated with `play_agent.py` are stored under `results_play/`.
+- Training logs and performance metrics are written to the `results/` folder. Evaluation statistics generated with `play_agent.py` are stored under `results_play/`.
+- Summarize Playing logs and performance metrics are written to summary_metrics.csv using results_visualization.py
 
 ---
 
