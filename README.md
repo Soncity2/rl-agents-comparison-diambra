@@ -26,7 +26,7 @@ rl-agents-comparison-diambra/
 │   ├── train_agent.py
 │   ├── play_agent.py
 │   ├── characters.py
-│   └── results_visualization.py
+│   └── summarize_results.py
 │
 ├── basic_examples/              # Experimental code and sandbox testing
 │   ├── main.py
@@ -131,7 +131,8 @@ The main play script exposes several useful flags:
 ## 📊 Results
 
 - Training logs and performance metrics are written to the `results/` folder. Evaluation statistics generated with `play_agent.py` are stored under `results_play/`.
-- Summarize Playing logs and performance metrics are written to summary_metrics.csv using results_visualization.py
+- Summarize Playing logs and performance metrics are written to `summary_metrics.csv` using `summarize_results.py`
+- Plots and Heatmaps are save in the `plots` directory in `results_play/`
 
 ---
 
