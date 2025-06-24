@@ -1,4 +1,4 @@
-# RainbowDIAMBRA
+# RL Agent Comparisons using Diambra Arena
 
 A reinforcement learning project using the DIAMBRA Arena to train and evaluate agents in fighting games. The repository is structured into two main sections: the **final project**, and **experimental scripts** used during research and prototyping. A single shared virtual environment is used for both.
 
@@ -7,7 +7,7 @@ A reinforcement learning project using the DIAMBRA Arena to train and evaluate a
 ## 🗂 Project Structure
 
 ```
-RainbowDIAMBRA/
+rl-agents-comparison-diambra/
 │
 ├── final_project/               # Final project training and evaluation
 │   ├── train_agent.py
@@ -35,8 +35,8 @@ RainbowDIAMBRA/
 
 ```bash
 # Clone the repo
-git clone https://github.com/Soncity2/rainbow-diambra.git
-cd rainbow-diambra
+git clone https://github.com/Soncity2/rl-agents-comparison-diambra.git
+cd rl-agents-comparison-diambra
 
 # Create and activate virtual environment
 python3.9 -m venv venv
@@ -51,6 +51,9 @@ pip install -r requirements.txt
 
 ### *Add the tektagt.zip ROM file to the rom directory.
 ROM file instructions: https://docs.diambra.ai/envs/games/tektagt/
+
+### *Install Docker Desktop 
+https://www.docker.com/products/docker-desktop/
 
 ---
 
